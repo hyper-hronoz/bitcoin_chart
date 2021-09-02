@@ -129,7 +129,11 @@ class Drawer {
 		let minValue = Math.pow(1024, 10);
 		let maxValue = Math.pow(-1024, 11)
 
-		for (let i = 0; i < vertices.length; i++) {
+		let verticesAmount = Math.floor(this.canvas.scrollWidth / Drawer.verticeWidth) + 1;
+
+		vertices = vertices.reverse();
+
+		for (let i = 0; i < verticesAmount; i++) {
 			if (minValue > vertices[i].openPrice) {
 				minValue = vertices[i].openPrice
 			}
@@ -146,7 +150,6 @@ class Drawer {
 
 		console.log("Минимальная и максимальная цена", minValue, maxValue);
 
-		let verticesAmount = Math.floor(this.canvas.scrollWidth / Drawer.verticeWidth) + 1;
 
 		// да вот это называется пиздец
 		let width = this.canvas.scrollWidth;
@@ -159,25 +162,26 @@ class Drawer {
 
 		const ctx = this.canvas.getContext("2d")
 
-		vertices = vertices.reverse();
 
-		const stretchCoefficient = height / maxValue;
+		const maxMinDifference = maxValue - minValue;
+
+		// const stretchCoefficient = height / maxValue;
 		// const stretchCoefficient = minValue / maxValue;
 		// const stretchCoefficient = minValue / maxValue;
 
-		console.log("Проклятый коэфицент", stretchCoefficient);
+		// console.log("Проклятый коэфицент", stretchCoefficient);
 
+		console.log("Max - min", maxMinDifference);
 		for (let i = 0; i < verticesAmount - 1; i++) {
 
+			console.log(`(maxMinDifference - (maxValue - vertices[i].openPrice)) => (${maxMinDifference} - (${maxValue} - ${vertices[i].openPrice}) => ${(maxMinDifference - (maxValue - vertices[i].openPrice))}`);
 			const coordinates = [
 				width - (i) * Drawer.verticeWidth,
-				// height - (vertices[i].openPrice  / maxValue * height - minValue / maxValue * height) * (height) / (height - minValue / maxValue * height),
-				// height - (vertices[i].openPrice / maxValue * height - minValue / maxValue * height) * (height) / (height - minValue / maxValue * height),
-				(height - vertices[i].openPrice * stretchCoefficient),
+				(maxMinDifference - (maxValue - vertices[i].openPrice)) / maxMinDifference * height,
 				width - (i + 1) * Drawer.verticeWidth,
-				// height - (vertices[i + 1].openPrice  / maxValue * height - minValue / maxValue * height) * (height) / (height - minValue / maxValue * height),
-				(height - vertices[i + 1].openPrice * stretchCoefficient),
+				(maxMinDifference - (maxValue - vertices[i + 1].openPrice)) / maxMinDifference * height,
 			]
+			// console.log(coordinates[1]);
 			ctx.strokeStyle = "rgb(0,211,255)";
 			ctx.translate(0, 0);
 			ctx.lineCap = "round";
