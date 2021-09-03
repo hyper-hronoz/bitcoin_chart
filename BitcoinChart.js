@@ -99,7 +99,7 @@ class ChartVerticeFactory {
 
 
 class ConnectionConfig {
-	static BASE_URL = "https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=1h";
+	static BASE_URL = "https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=1m";
 }
 
 class Connection {
@@ -117,9 +117,14 @@ class Drawer {
 
 	constructor(canvas) {
 		this.canvas = canvas;
+		this.ctx = canvas.getContext("2d")
 	}
 
 	draw(data) {
+		if (!data) {
+			console.log("Данные не прилетели");
+			return;
+		}
 		console.log("Начало отрисовки графика");
 		console.log(data);
 
@@ -129,9 +134,12 @@ class Drawer {
 		let minValue = Math.pow(1024, 10);
 		let maxValue = Math.pow(-1024, 11)
 
-		let verticesAmount = Math.floor(this.canvas.scrollWidth / Drawer.verticeWidth) + 1;
+		let verticesAmount = (Math.floor(this.canvas.scrollWidth / Drawer.verticeWidth) + 1) <= vertices.length ? (Math.floor(this.canvas.scrollWidth / Drawer.verticeWidth) + 1) : vertices.length;
 
 		vertices = vertices.reverse();
+
+		console.log("Вершины", vertices);
+		console.log("Количество свечей", verticesAmount);
 
 		for (let i = 0; i < verticesAmount; i++) {
 			if (minValue > vertices[i].openPrice) {
@@ -160,9 +168,6 @@ class Drawer {
 
 		console.log("Высота и длина канваса", width, height);
 
-		const ctx = this.canvas.getContext("2d")
-
-
 		const maxMinDifference = maxValue - minValue;
 
 		// const stretchCoefficient = height / maxValue;
@@ -170,36 +175,57 @@ class Drawer {
 		// const stretchCoefficient = minValue / maxValue;
 
 		// console.log("Проклятый коэфицент", stretchCoefficient);
+		let paddingVertical = height / 8;
+		let paddingHorizontal = width / 12;
 
 		console.log("Max - min", maxMinDifference);
-		for (let i = 0; i < verticesAmount - 1; i++) {
+		for (let i = 0; i < verticesAmount; i++) {
+			let verticalPosition = (price) => {
+				return height - paddingVertical - (maxMinDifference - (maxValue - price)) / maxMinDifference * (height - 2 * paddingVertical);
+			}
+
+			if (i == verticesAmount - 1) {
+				let textSize = 14;
+				let text = vertices[0].closePrice;
+
+				this.ctx.beginPath();
+				this.ctx.font = textSize + "px" + " sans-serif";
+				this.ctx.fillStyle = "#00ff00";
+				this.ctx.fillText(
+					text,
+					width - this.ctx.measureText(text).width - 10,
+					verticalPosition(text) - textSize
+				);
+				this.ctx.setLineDash([0.3, 6]);
+				this.ctx.moveTo(0, verticalPosition(text));
+				this.ctx.lineTo(width, verticalPosition(text));
+				this.ctx.stroke();
+			}
 
 			console.log(`(maxMinDifference - (maxValue - vertices[i].openPrice)) => (${maxMinDifference} - (${maxValue} - ${vertices[i].openPrice}) => ${(maxMinDifference - (maxValue - vertices[i].openPrice))}`);
 			const coordinates = [
-				width - (i) * Drawer.verticeWidth,
-				(maxMinDifference - (maxValue - vertices[i].openPrice)) / maxMinDifference * height,
-				width - (i + 1) * Drawer.verticeWidth,
-				(maxMinDifference - (maxValue - vertices[i + 1].openPrice)) / maxMinDifference * height,
+				width - paddingHorizontal - (i) * Drawer.verticeWidth,
+				verticalPosition(vertices[i].openPrice),
+				width - paddingHorizontal - (i - 1) * Drawer.verticeWidth,
+				verticalPosition(vertices[i].closePrice)
 			]
 			// console.log(coordinates[1]);
-			ctx.strokeStyle = "rgb(0,211,255)";
-			ctx.translate(0, 0);
-			ctx.lineCap = "round";
-			ctx.moveTo(coordinates[0], coordinates[1]);
-			ctx.lineTo(coordinates[2], coordinates[3]);
-			ctx.stroke();
-
+			this.ctx.beginPath();
+			this.ctx.shadowColor = "rgba(0, 211, 255, .8)";
+			this.ctx.shadowBlur = 10;
+			this.ctx.shadowOffsetX = 0;
+			this.ctx.shadowOffsetY = 0;
+			this.ctx.lineCap = 'round';
+			this.ctx.lineWidth = 2;
+			this.ctx.strokeStyle = "rgb(0,211,255)";
+			this.ctx.moveTo(coordinates[0], coordinates[1]);
+			this.ctx.lineTo(coordinates[2], coordinates[3]);
+			this.ctx.stroke();
 		}
-
-
-		console.log("Количество свечей", verticesAmount);
-		// console.log("Минимальная и максимальная цена", minValue, maxValue);
-
-
 	}
 
 	clear() {
-		this.context.clearRect(0, 0, canvas.width, canvas.height);
+		this.ctx.clearRect(0, 0, canvas.width, canvas.height);
 	}
 }
 
@@ -226,6 +252,7 @@ class Chart {
 					console.log("При отрисовке не оказалось данных");
 					return;
 				}
+				item.clear();
 				item.draw(data);
 				console.log("Отработала отрисовка");
 				continue;
@@ -241,3 +268,6 @@ class Chart {
 const canvas = document.getElementById("canvas");
 const chart = new Chart(canvas);
 chart.change()
+setInterval(() => {
+	chart.change()
+}, 500)
