@@ -97,13 +97,25 @@ class ChartVerticeFactory {
 }
 
 
-class Connection {
+class ConnectionChart {
 	static BASE_URL = "https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=";
 	static FETCH_URL = "https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=1h";
 
 	async makeRequest() {
-		console.log("Запрос полетел");
-		const response = await fetch(Connection.FETCH_URL);
+		console.log("Запрос полетел на получение графика");
+		const response = await fetch(ConnectionChart.FETCH_URL);
+		const data = await response.json();
+		return data;
+	}
+}
+
+class ConnectionSymbol extends ConnectionChart {
+	// BASE URL IS NOT SUPPORTED HERE
+	static FETCH_URL = "https://api.binance.com/api/v3/exchangeInfo";
+
+	async makeRequest() {
+		console.log("Запрос полетел на получение символов");
+		const response = await fetch(ConnectionSymbol.FETCH_URL);
 		const data = await response.json();
 		return data;
 	}
@@ -158,7 +170,7 @@ class LineDrawer {
 
 		this.ctx.shadowColor = "";
 		this.ctx.setLineDash([1, 5]);
-		this.ctx.lineWidth = 1 
+		this.ctx.lineWidth = 1
 		this.ctx.moveTo(0, this.calculateVerticalPosition(vertice.closePrice, chartData));
 		this.ctx.lineTo(this.width, this.calculateVerticalPosition(vertice.closePrice, chartData));
 		this.ctx.closePath();
@@ -255,7 +267,7 @@ class CandleDrawer extends LineDrawer {
 		super(canvas)
 	}
 	draw(data) {
-		LineDrawer.verticeWidth = 8 
+		LineDrawer.verticeWidth = 8
 
 		const chartVerticeFactory = new ChartVerticeFactory();
 		let vertices = chartVerticeFactory.create(data, ChartVertice.TYPE_CANDLE);
@@ -339,43 +351,69 @@ class CandleDrawer extends LineDrawer {
 	}
 }
 
+class Symbols {
+
+	update(symbols) {
+		let symbolsContainer = document.querySelector(".currencies_container");
+
+		for (let i = 0; i < 100; i++) {
+			console.log(symbols[i]);
+			symbolsContainer.innerHTML += `
+				<div class="currency">${symbols[i].symbol}</div>	
+			`
+		}
+		// symbolsContainer.appendChild()
+	}
+}
+
 
 
 class Chart {
 	constructor(canvas) {
 		this.states = [
-			new Connection(),
+			new ConnectionChart(),
 			new CandleDrawer(canvas),
+			// new ConnectionSymbol(),
+			// new Symbols(),
 		]
-		this.current = this.states[0]
 	}
 
 	async change() {
 		console.log("Меняем график");
 		let data = null;
-		for (let item of this.states) {
-			if (typeof item.makeRequest !== "undefined") {
-				data = await item.makeRequest();
+		let symbols = null;
+
+		for (let i = 0; i < this.states.length; i++) {
+			let current = this.states[i]
+			if (i == 0) {
+				data = await current.makeRequest();
 				console.log("Отработало получение данных");
 				continue;
 			}
-			if (typeof item.draw !== "undefined") {
+			if (i == 1) {
 				if (!data) {
 					console.log("При отрисовке не оказалось данных");
 					return;
 				}
 				data = data.reverse();
 				console.log(data);
-				item.clear();
-				item.draw(data);
+				current.clear();
+				current.draw(data);
 				console.log("Отработала отрисовка");
 				continue;
 			}
+			if (i == 2) {
+				symbols = await current.makeRequest();
+				continue;
+			}
+			if (i == 3) {
+				if (!symbols) {
+					console.log("Не оказалось символов в ответе");
+					return;
+				}
+				current.update(symbols.symbols)
+			}
 		}
-	}
-
-	getCurrentState() {
-		return this.current;
 	}
 }
 
@@ -385,19 +423,158 @@ const chart = new Chart(canvas);
 
 
 document.addEventListener("click", (event) => {
-	
+
 	let target = event.path[0].classList.value;
 
+	if (target.includes("timestamp") && !target.includes("focus")) {
+		let target_id = target.split(" ")[target.split(" ").length - 1]
+		let elements = document.querySelectorAll(".timestamp");
+		elements.forEach(element => {
+			element.classList.remove("focus")
+			if (element.classList.contains(target_id)) {
+				element.classList.add("focus")
+			}
+		});
 
-	if (target.includes("timestamp")) {
-		console.log(target.split(" ")[target.split(" ").length - 1]);
-		Connection.FETCH_URL = Connection.BASE_URL + target.split(" ")[target.split(" ").length - 1]
-		chart.change();
+		// прерываем все запросы
+		try {
+			window.stop();
+		} catch (e) {
+			document.execCommand('Stop');
+		}
+		ConnectionChart.FETCH_URL = ConnectionChart.BASE_URL + target_id
 	}
 })
 
+const element = document.querySelector(".currencies")
+const search = document.querySelector(".search")
+const element_click = document.querySelector(".coin-info")
+element_click.addEventListener("click", () => {
+	if (element.classList.contains("active")) {
+		element.classList.remove("active")
+	} else {
+		element.classList.add("active")
+	}
+})
+
+const fin = async () => {
+	const response = await fetch("https://api.binance.com/api/v3/exchangeInfo");
+	const data = await response.json();
+	console.log(data);
+}
+
+fin();
 
 chart.change()
 setInterval(() => {
 	chart.change()
 }, 500)
+
+KioskBoard.Init({
+
+	/*!
+	 * Required
+	 * Have to define an Array of Objects for the custom keys. Hint: Each object creates a row element (HTML) on the keyboard.
+	 * e.g. [{"key":"value"}, {"key":"value"}] => [{"0":"A","1":"B","2":"C"}, {"0":"D","1":"E","2":"F"}]
+	 */
+	keysArrayOfObjects: [{
+			"0": "Q",
+			"1": "W",
+			"2": "E",
+			"3": "R",
+			"4": "T",
+			"5": "Y",
+			"6": "U",
+			"7": "I",
+			"8": "O",
+			"9": "P"
+		},
+		{
+			"0": "A",
+			"1": "S",
+			"2": "D",
+			"3": "F",
+			"4": "G",
+			"5": "H",
+			"6": "J",
+			"7": "K",
+			"8": "L"
+		},
+		{
+			"0": "Z",
+			"1": "X",
+			"2": "C",
+			"3": "V",
+			"4": "B",
+			"5": "N",
+			"6": "M"
+		}
+	],
+
+	/*!
+	 * Required only if "keysArrayOfObjects" is "null".
+	 * The path of the "kioskboard-keys-${langugage}.json" file must be set to the "keysJsonUrl" option. (XMLHttpRequest to getting the keys from JSON file.)
+	 * e.g. '/Content/Plugins/KioskBoard/dist/kioskboard-keys-english.json'
+	 */
+	keysJsonUrl: null,
+
+	/*
+	 * Optional: (Special Characters Object)* Can override default special characters object with the new/custom one.
+	 * e.g. {"key":"value", "key":"value", ...} => {"0":"#", "1":"$", "2":"%", "3":"+", "4":"-", "5":"*"}
+	 */
+	specialCharactersObject: null,
+
+	// Optional: (Other Options)
+
+	// Language Code (ISO 639-1) for custom keys (for language support) => e.g. "de" || "en" || "fr" || "hu" || "tr" etc...
+	language: 'en',
+
+	// The theme of keyboard => "light" || "dark" || "flat" || "material" || "oldschool"
+	theme: 'dark',
+
+	// Uppercase or lowercase to start. Uppercase when "true"
+	capsLockActive: true,
+
+	/*
+	 * Allow or prevent real/physical keyboard usage. Prevented when "false"
+	 * In addition, the "allowMobileKeyboard" option must be "true" as well, if the real/physical keyboard has wanted to be used.
+	 */
+	allowRealKeyboard: false,
+
+	// Allow or prevent mobile keyboard usage. Prevented when "false"
+	allowMobileKeyboard: false,
+
+	// CSS animations for opening or closing the keyboard
+	cssAnimations: true,
+
+	// CSS animations duration as millisecond
+	cssAnimationsDuration: 360,
+
+	// CSS animations style for opening or closing the keyboard => "slide" || "fade"
+	cssAnimationsStyle: 'slide',
+
+	// Allow or deny Spacebar on the keyboard. The keyboard is denied when "false"
+	keysAllowSpacebar: true,
+
+	// Text of the space key (spacebar). Without text => " "
+	keysSpacebarText: 'Space',
+
+	// Font family of the keys
+	keysFontFamily: 'sans-serif',
+
+	// Font size of the keys
+	keysFontSize: '22px',
+
+	// Font weight of the keys
+	keysFontWeight: 'normal',
+
+	// Size of the icon keys
+	keysIconSize: '25px',
+
+	// Scrolls the document to the top of the input/textarea element. The default value is "true" as before. Prevented when "false"
+	autoScroll: true,
+});
+
+KioskBoard.Run('.js-virtual-keyboard');
+
+// /api/v1/exchangeInfo
