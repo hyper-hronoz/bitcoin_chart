@@ -122,6 +122,8 @@
 
 		.currencies {
 			position: absolute;
+			height: 100vh;
+			overflow: auto;
 			background: #111E2E;
 			width: 0px;
 			transition: .5s;
@@ -129,6 +131,25 @@
 			top: 0;
 			left: 58px;
 			bottom: 0;
+		}
+
+		.currencies::-webkit-scrollbar {
+			width: 3px;
+		}
+
+		/* Track */
+		.currencies::-webkit-scrollbar-track {
+			background: #707070;
+		}
+
+		/* Handle */
+		.currencies::-webkit-scrollbar-thumb {
+			background: #00D3FF;
+		}
+
+		/* Handle on hover */
+		.currencies::-webkit-scrollbar-thumb:hover {
+			background: #00D3FF;
 		}
 
 		.currencies.active {
@@ -162,6 +183,24 @@
 		.currency:hover::after {
 			width: 200px;
 		}
+
+		.currencies_container {
+			overflow: visible;
+		}
+
+		.preloader {
+			position: absolute;
+			left: 58px;
+			right: 0;
+			bottom: 0;
+			top: 0;
+			opacity: 1;
+			transition: 1s;
+		}
+
+		.preloader.hidden {
+			opacity: 0;
+		}
 	</style>
 
 	<div class="container">
@@ -175,7 +214,7 @@
 						fill="#f90" />
 				</svg>
 				<span class="coin-info_pair pair">
-					BTC/USD
+					BTCUSDT
 				</span>
 			</div>
 
@@ -214,8 +253,11 @@
 
 
 		<canvas id="canvas"></canvas>
+		<div class="preloader"></div>
 	</div>
 
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+	<script src="https://cdn.rawgit.com/mrdoob/three.js/master/examples/js/loaders/GLTFLoader.js"></script>
 	<script src="https://cdn.jsdelivr.net/npm/kioskboard@1.4.0/dist/kioskboard-aio-1.4.0.min.js"></script>
 	<script src="./BitcoinChart.js"></script>
 </body>

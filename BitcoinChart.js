@@ -98,7 +98,6 @@ class ChartVerticeFactory {
 
 
 class ConnectionChart {
-	static BASE_URL = "https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=";
 	static FETCH_URL = "https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=1h";
 
 	async makeRequest() {
@@ -106,6 +105,19 @@ class ConnectionChart {
 		const response = await fetch(ConnectionChart.FETCH_URL);
 		const data = await response.json();
 		return data;
+	}
+
+	static changeTimeStamp(time) {
+		console.log(time);
+		ConnectionChart.FETCH_URL = ConnectionChart.FETCH_URL.replace(/interval=[A-Za-z0-9]+/, "interval=" + time)
+		console.log(ConnectionChart.FETCH_URL);
+	}
+
+	static changeSymbol(symbol) {
+		console.log(symbol);
+		ConnectionChart.FETCH_URL = ConnectionChart.FETCH_URL.replace(/symbol=[A-Z]+/, "symbol=" + symbol)
+		document.querySelector(".coin-info_pair").innerText = symbol
+		console.log(ConnectionChart.FETCH_URL);
 	}
 }
 
@@ -352,29 +364,100 @@ class CandleDrawer extends LineDrawer {
 }
 
 class Symbols {
-
 	update(symbols) {
+
+		if (this.symbols) {
+			return
+		}
+
 		let symbolsContainer = document.querySelector(".currencies_container");
 
-		for (let i = 0; i < 100; i++) {
-			console.log(symbols[i]);
+		symbolsContainer.innerHTML = ""
+
+		for (let i = 0; i < 40; i++) {
 			symbolsContainer.innerHTML += `
 				<div class="currency">${symbols[i].symbol}</div>	
 			`
 		}
-		// symbolsContainer.appendChild()
+
+		this.symbols = symbols
+	}
+
+	search(symbol) {
+		if (!this.symbols) {
+			console.log("Не обнаружено символов для поиска");
+			return;
+		}
+
+		for (let i of this.symbols) {
+			console.log(i);
+		}
 	}
 }
+
+// class Loader {
+// 	constructor(canvas) {
+// 		this.canvas = canvas;
+// 		this.ctx = canvas.getContext;
+
+// 		let height = this.canvas.scrollHeight
+// 		let width = this.canvas.scrollWidth
+
+// 		this.canvas.height = height;
+// 		this.canvas.width = width;
+// 	}
+
+// 	start() {
+// 		let d = 200
+// 		this.ctx.translate(d / 2, d / 2);
+// 		this.ctx.rotate(Math.PI * 360 / 360);
+// 		this.ctx.lineWidth = Math.ceil(d / 50);
+// 		this.ctx.lineCap = 'square';
+
+// 		for (var i = 0; i <= 360; i++) {
+// 			this.ctx.save();
+
+// 			this.ctx.rotate((Math.PI * i / 180));
+// 			//ctx.translate(-ctx.lineWidth/2, ctx.lineWidth/2);
+
+// 			this.ctx.beginPath();
+// 			this.ctx.moveTo(0, 0);
+// 			opacity = (360 - (i * 0.95)) / 360;
+// 			this.ctx.strokeStyle = 'rgba(255,255,255,' + opacity.toFixed(2) + ')';
+// 			this.ctx.lineTo(0, d + 30);
+// 			this.ctx.stroke();
+// 			this.ctx.closePath();
+
+// 			this.ctx.restore();
+// 		}
+
+// 		this.ctx.globalCompositeOperation = 'source-out';
+// 		this.ctx.beginPath();
+// 		this.ctx.arc(0, 0, d / 2, 2 * Math.PI, false);
+// 		this.ctx.fillStyle = 'white';
+// 		this.ctx.fill();
+
+// 		this.ctx.globalCompositeOperation = 'destination-out';
+// 		this.ctx.beginPath();
+// 		this.ctx.arc(0, 0, (d / 2) * .9, 2 * Math.PI, false);
+// 		this.ctx.fill();
+// 	}
+
+// 	stop() {
+
+// 	}
+// }
 
 
 
 class Chart {
 	constructor(canvas) {
 		this.states = [
+			// new Loader(canvas)
 			new ConnectionChart(),
 			new CandleDrawer(canvas),
-			// new ConnectionSymbol(),
-			// new Symbols(),
+			new ConnectionSymbol(),
+			new Symbols(),
 		]
 	}
 
@@ -436,36 +519,36 @@ document.addEventListener("click", (event) => {
 			}
 		});
 
-		// прерываем все запросы
-		try {
-			window.stop();
-		} catch (e) {
-			document.execCommand('Stop');
+		ConnectionChart.changeTimeStamp(target_id);
+	}
+
+	if (target.includes("currency")) {
+		ConnectionChart.changeSymbol(event.path[0].innerText)
+	}
+
+	if (target.includes("coin-info")) {
+		const element = document.querySelector(".currencies")
+		if (element.classList.contains("active")) {
+			element.classList.remove("active")
+		} else {
+			element.classList.add("active")
 		}
-		ConnectionChart.FETCH_URL = ConnectionChart.BASE_URL + target_id
+	}
+
+	try {
+		window.stop();
+	} catch (e) {
+		document.execCommand('Stop');
 	}
 })
 
-const element = document.querySelector(".currencies")
-const search = document.querySelector(".search")
-const element_click = document.querySelector(".coin-info")
-element_click.addEventListener("click", () => {
-	if (element.classList.contains("active")) {
-		element.classList.remove("active")
-	} else {
-		element.classList.add("active")
-	}
+const currenciesSearch = document.querySelector(".currencies_search");
+
+currenciesSearch.addEventListener("change", (e) => {
+
 })
 
-const fin = async () => {
-	const response = await fetch("https://api.binance.com/api/v3/exchangeInfo");
-	const data = await response.json();
-	console.log(data);
-}
 
-fin();
-
-chart.change()
 setInterval(() => {
 	chart.change()
 }, 500)
@@ -576,5 +659,63 @@ KioskBoard.Init({
 });
 
 KioskBoard.Run('.js-virtual-keyboard');
+
+// console.log(canvas.height);
+
+// const container = document.querySelector(".preloader")
+
+// const scene = new THREE.Scene();
+// const camera = new THREE.PerspectiveCamera(75, canvas.scrollWidth / canvas.scrollHeight, 0.1, 1000);
+
+// camera.position.set(1, -3, 1);
+// const renderer = new THREE.WebGLRenderer({
+// 	alpha: true,
+// 	antialias: true
+// });
+// renderer.domElement.id = 'preloader_canvas';
+// renderer.setSize(canvas.scrollWidth, canvas.scrollHeight);
+// container.appendChild(renderer.domElement);
+
+// const aLight = new THREE.AmbientLight(0x404040, 1.2);
+// scene.add(aLight)
+
+// const pLight = new THREE.PointLight(0xFFFF00, 1.2)
+// pLight.position.set(0, -3, 80);
+// scene.add(pLight)
+
+// const loader = new THREE.GLTFLoader();
+
+// let obj
+// loader.load("/bitcoin.gltf", function (gltf) {
+// 	obj = gltf
+// 	// obj.
+// 	// const box = new THREE.Box3().setFromObject(gltf.scene);
+// 	// const center = box.getCenter(new THREE.Vector3());
+// 	// obj.scene.position.y = 10
+
+// 	// obj.scene.position.x += (obj.scene.position.x - center.x);
+// 	// obj.scene.position.y += (obj.scene.position.y - center.y);
+// 	// obj.scene.position.z += (obj.scene.position.z - center.z);
+// 	scene.add(obj.scene)
+// })
+
+// camera.position.z = 15;
+
+
+// const animate = function () {
+// 	requestAnimationFrame(animate);
+
+// 	if (obj) {
+// 		obj.scene.rotation.y += 0.03
+// 	}
+
+// 	renderer.render(scene, camera);
+// };
+
+// animate();
+
+setTimeout(() => {
+	// container.classList.add("hidden")
+}, 3000)
 
 // /api/v1/exchangeInfo
