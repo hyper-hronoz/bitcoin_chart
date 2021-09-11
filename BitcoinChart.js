@@ -557,15 +557,9 @@ class Loader {
 
 
 class Chart {
-	constructor(canvas) {
-		this.states = [
-			new Loader(canvas), // start animation
-			new ConnectionChart(),
-			new CandleDrawer(canvas),
-			new GridDrawer(canvas),
-			new ConnectionSymbol(),
-			new Symbols(),
-		]
+	constructor(states) {
+		this.states = states	
+		this.isLoader = false;
 	}
 
 	async change() {
@@ -575,53 +569,78 @@ class Chart {
 
 		const delay = ms => new Promise(res => setTimeout(res, ms));
 
-		for (let i = 0; i < this.states.length; i++) {
-			let current = this.states[i]
-			if (i == 0) {
-				if (!this.isLoader) {
-					current.start();
-				}
-			}
-			if (i == 1) {
-				data = await current.makeRequest();
-				console.log("Отработало получение данных");
-				continue;
-			}
-			if (i == 2) {
-				if (!data) {
-					console.log("При отрисовке не оказалось данных");
-					return;
-				}
-				data = data.reverse();
-				console.log(data);
-				current.clear();
-				current.draw(data);
-				console.log("Отработала отрисовка");
-				this.isLoader = true;
-				continue;
-			}
-			if (i == 3) {
-				current.draw(data);
-				continue;
-			}
-			if (i == 4) {
-				symbols = await current.makeRequest();
-				continue;
-			}
-			if (i == 5) {
-				if (!symbols) {
-					console.log("Не оказалось символов в ответе");
-					return;
-				}
-				current.update(symbols.symbols)
+		for (let i of Object.keys(this.states)) {
+			let state = this.states[i]
+			switch (i) {
+				case "Loader":
+					if (!this.isLoader) {
+						state.start();	
+					}
+					break;
+			
+				case "ConnectionChart":
+					data = await state.makeRequest();
+					break;
+
+				case "LineDrawer":
+					if (!data) {
+						console.log("Данных по графику не получено");
+						break;
+					}
+					data = data.reverse();
+					state.clear();
+					state.draw(data);
+					this.isLoader = true
+					break;
+
+				case "GridDrawer":
+					state.draw(data);
+					break;
+
+				case "ConnectionSymbol":
+					symbols = await state.makeRequest();
+					break;
+
+				case "Symbols":
+					if (!symbols) {
+						console.log("Валютные пары не получены");
+						break;
+					}
+					state.update(symbols.symbols)
+					break;
+				default:
+					break;
 			}
 		}
 	}
 }
 
+const breakConnection = () => {
+	try {
+		window.stop();
+	} catch (e) {
+		document.execCommand('Stop');
+	}
+}
+
 
 const canvas = document.getElementById("canvas");
-const chart = new Chart(canvas);
+let states = {
+	Loader: new Loader(canvas),
+	ConnectionChart: new ConnectionChart(),
+	LineDrawer: new LineDrawer(canvas),
+	GridDrawer: new GridDrawer(canvas),
+	ConnectionSymbol: new ConnectionSymbol(),
+	Symbols: new Symbols(),
+}
+const chart = new Chart(states);
+
+// const timesStamps = document.querySelectorAll(".timestamp");
+// timesStamps.forEach(item => {
+// 	item.addEventListener("click", () => {
+
+// 	})
+// })
 
 
 document.addEventListener("click", (event) => {
@@ -640,21 +659,13 @@ document.addEventListener("click", (event) => {
 
 		chart.isLoader = false
 		ConnectionChart.changeTimeStamp(target_id);
-		try {
-			window.stop();
-		} catch (e) {
-			document.execCommand('Stop');
-		}
+		breakConnection();
 	}
 
 	if (target.includes("currency")) {
 		chart.isLoader = false
 		ConnectionChart.changeSymbol(event.path[0].innerText)
-		try {
-			window.stop();
-		} catch (e) {
-			document.execCommand('Stop');
-		}
+		breakConnection();
 	}
 
 })
@@ -673,11 +684,11 @@ const chartTypeCandle = document.querySelector(".chart-type_candle")
 const chartTypeLine = document.querySelector(".chart-type_line")
 
 chartTypeCandle.addEventListener("click", () => {
-	chart.states[2] = new CandleDrawer(canvas)
+	chart.states.LineDrawer = new CandleDrawer(canvas)
 })
 
 chartTypeLine.addEventListener("click", () => {
-	chart.states[2] = new LineDrawer(canvas)
+	chart.states.LineDrawer = new LineDrawer(canvas)
 })
 
 const currenciesSearch = document.querySelector(".currencies_search");
@@ -686,10 +697,9 @@ currenciesSearch.addEventListener("change", (e) => {
 	chart.states[chart.states.length - 1].search(e.target.value)
 })
 
-
 setInterval(() => {
 	chart.change()
-}, 2000)
+}, 500)
 
 KioskBoard.Init({
 
