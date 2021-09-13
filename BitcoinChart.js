@@ -133,11 +133,11 @@ class ConnectionSymbol extends ConnectionChart {
 	}
 }
 
-
-class LineDrawer {
+class GridDrawer {
+	static LineWidth = 6;
+	static CandleWidth = 8;
 
 	constructor(canvas) {
-		this.verticeWidth = 6;
 		this.canvas = canvas;
 		this.ctx = canvas.getContext("2d");
 
@@ -150,23 +150,148 @@ class LineDrawer {
 		this.height = height;
 		this.width = width;
 
-		this.paddingHorizontal = this.width / 12;
+		this.gridHeight = 40
+		this.gridAmount = Math.floor(this.height / this.gridHeight);
+
+		this.verticeWidth = GridDrawer.LineWidth;
 	}
 
-	calculateVerticalPosition(price, chartData) {
-		if (!chartData.maxValue) {
+	calculateVerticalPosition(price) {
+		if (!this.maxValue) {
 			console.log("Не задана максимальная цена графика на промежутке");
 			return;
 		}
-		if (!chartData.maxMinDifference) {
+		if (!this.maxMinDifference) {
 			console.log("Не задана разница цен max и min");
 			return;
 		}
 		let paddingVertical = this.height / 8;
-		return this.height - paddingVertical - (chartData.maxMinDifference - (chartData.maxValue - price)) / chartData.maxMinDifference * (this.height - 2 * paddingVertical);
+		return this.height - paddingVertical - (this.maxMinDifference - (this.maxValue - price)) / this.maxMinDifference * (this.height - 2 * paddingVertical);
 	}
 
-	drawLine(vertice, chartData, textColor = "#00ff00") {
+	draw(data) {
+		const number = parseFloat(data[0][4])
+		const numberToString = number + ""
+
+		let numberBeforeDot = numberToString.replace(/\.[0-9]+/g, "") * 1;
+		let numberAfterDot = numberToString.replace(/[0-9]+\./g, "") * 1;
+
+		let numberBeforeDotDown = numberBeforeDot;
+
+		let divideNumber = "1"
+
+		for (let i = 0; i < (numberBeforeDot + "").length - 2; i++) {
+			divideNumber += "0"
+		}
+
+		divideNumber = divideNumber * 1
+
+		let gridPrices = []
+
+		console.log("Количество рядов сетки", this.gridAmount);
+
+		let calculateGridPrices = (divideNumber) => {
+			let numberUp = numberBeforeDot;
+			let numberDown = numberBeforeDot;
+			let linesAmount = this.gridAmount;
+
+			while (linesAmount > 0) {
+				if (numberUp % divideNumber == 0) {
+					gridPrices.push(numberUp)
+					linesAmount -= 1
+				}
+				numberUp += 1
+			}
+
+			linesAmount = this.gridAmount;
+			while (linesAmount > 0) {
+				numberDown -= 1
+				if (numberDown % divideNumber == 0) {
+					gridPrices.push(numberDown)
+					linesAmount -= 1
+				}
+			}
+
+			if ((this.calculateVerticalPosition(gridPrices[0]) - this.calculateVerticalPosition(gridPrices[1])) < this.gridHeight) {
+				gridPrices = []
+				// calculateGridPrices(divideNumber)
+			}
+		}
+
+		calculateGridPrices(divideNumber);
+
+		const chartVerticeFactory = new ChartVerticeFactory();
+
+		let vertices = chartVerticeFactory.create(data);
+
+		this.getMaxMinValue(vertices)
+
+		for (let i of gridPrices) {
+			this.ctx.beginPath();
+			this.ctx.strokeStyle = "rgba(255,255,255, .1)"
+			this.ctx.lineWidth = 1
+			this.ctx.moveTo(0, this.calculateVerticalPosition(i))
+			this.ctx.lineTo(this.canvas.width, this.calculateVerticalPosition(i))
+			this.ctx.stroke()
+
+
+			let text = i + "";
+			let textSize = 14
+			this.ctx.beginPath();
+			this.ctx.font = textSize + "px" + " sans-serif";
+			this.ctx.fillStyle = "#fff";
+			this.ctx.fillText(
+				text,
+				this.width - this.ctx.measureText(text).width - 10,
+				this.calculateVerticalPosition(i) - textSize
+			);
+		}
+	}
+
+	getMaxMinValue(vertices, key = "openPrice") {
+		let minValue = Math.pow(1024, 10);
+		let maxValue = Math.pow(-1024, 11);
+
+		this.verticesAmount = (Math.floor(this.width / this.verticeWidth) + 1) <= vertices.length ? (Math.floor(this.width / this.verticeWidth) + 1) : vertices.length;
+
+		for (let i = 0; i < this.verticesAmount; i++) {
+			if (minValue > vertices[i][key]) {
+				minValue = vertices[i][key]
+			}
+			if (maxValue < vertices[i][key]) {
+				maxValue = vertices[i][key]
+			}
+			if (minValue > vertices[i][key]) {
+				minValue = vertices[i][key]
+			}
+			if (maxValue < vertices[i][key]) {
+				maxValue = vertices[i][key]
+			}
+		}
+
+		this.minValue = minValue;
+		this.maxValue = maxValue;
+		this.maxMinDifference = maxValue - minValue;
+	}
+
+	clear() {
+		this.ctx.clearRect(0, 0, canvas.width, canvas.height);
+	}
+}
+
+
+class LineDrawer extends GridDrawer {
+
+	constructor(canvas) {
+		super(canvas)
+
+		this.ctx = canvas.getContext("2d")
+
+		this.paddingHorizontal = this.width / 12;
+
+	}
+
+	drawLine(vertice, textColor = "#00ff00") {
 		let textSize = 14;
 		let text = vertice.closePrice;
 
@@ -177,82 +302,47 @@ class LineDrawer {
 		this.ctx.fillText(
 			text,
 			this.width - this.ctx.measureText(text).width - 10,
-			this.calculateVerticalPosition(vertice.closePrice, chartData) - textSize
+			this.calculateVerticalPosition(vertice.closePrice) - textSize
 		);
 
 		this.ctx.shadowColor = "";
 		this.ctx.setLineDash([1, 5]);
 		this.ctx.lineWidth = 1
-		this.ctx.moveTo(0, this.calculateVerticalPosition(vertice.closePrice, chartData));
-		this.ctx.lineTo(this.width, this.calculateVerticalPosition(vertice.closePrice, chartData));
+		this.ctx.moveTo(0, this.calculateVerticalPosition(vertice.closePrice));
+		this.ctx.lineTo(this.width, this.calculateVerticalPosition(vertice.closePrice));
 		this.ctx.closePath();
 		this.ctx.stroke();
 	}
 
 	draw(data) {
-		console.log("Начало отрисовки графика");
 
 		const chartVerticeFactory = new ChartVerticeFactory();
 		let vertices = chartVerticeFactory.create(data);
 
-		let minValue = Math.pow(1024, 10);
-		let maxValue = Math.pow(-1024, 11)
-
-		let verticesAmount = (Math.floor(this.canvas.scrollWidth / this.verticeWidth) + 1) <= vertices.length ? (Math.floor(this.canvas.scrollWidth / this.verticeWidth) + 1) : vertices.length;
-
-		console.log("Вершины", vertices);
-		console.log("Количество свечей", verticesAmount);
-
-		for (let i = 0; i < verticesAmount; i++) {
-			if (minValue > vertices[i].openPrice) {
-				minValue = vertices[i].openPrice
-			}
-			if (maxValue < vertices[i].openPrice) {
-				maxValue = vertices[i].openPrice
-			}
-			if (minValue > vertices[i].closePrice) {
-				minValue = vertices[i].closePrice
-			}
-			if (maxValue < vertices[i].closePrice) {
-				maxValue = vertices[i].closePrice
-			}
-		}
-
-		console.log("Минимальная и максимальная цена", minValue, maxValue);
-
-		console.log("Высота и длина канваса", this.width, this.height);
-
-		let maxMinDifference = maxValue - minValue;
-
-		const chartData = {
-			maxMinDifference: maxMinDifference,
-			maxValue: maxValue,
-		}
+		this.getMaxMinValue(vertices);
 
 
-		for (let i = 0; i < verticesAmount; i++) {
-
+		for (let i = 0; i < this.verticesAmount; i++) {
 
 			let coordinates = [];
 
 			if (i == 0) {
 				coordinates = [
 					this.width - this.paddingHorizontal - (i) * this.verticeWidth,
-					this.calculateVerticalPosition(vertices[i].openPrice, chartData),
+					this.calculateVerticalPosition(vertices[i].openPrice),
 					this.width - this.paddingHorizontal - (i - 1) * this.verticeWidth,
-					this.calculateVerticalPosition(vertices[i].closePrice, chartData)
+					this.calculateVerticalPosition(vertices[i].closePrice)
 				]
-				this.drawLine(vertices[0], chartData)
+				this.drawLine(vertices[0])
 			} else {
 				coordinates = [
 					this.width - this.paddingHorizontal - (i) * this.verticeWidth,
-					this.calculateVerticalPosition(vertices[i].openPrice, chartData),
+					this.calculateVerticalPosition(vertices[i].openPrice),
 					this.width - this.paddingHorizontal - (i - 1) * this.verticeWidth,
-					this.calculateVerticalPosition(vertices[i - 1].openPrice, chartData)
+					this.calculateVerticalPosition(vertices[i - 1].openPrice)
 				]
 			}
 
-			console.log(coordinates);
 			this.ctx.beginPath();
 			this.ctx.shadowColor = "rgba(0, 211, 255, .8)";
 			this.ctx.shadowBlur = 10;
@@ -268,68 +358,31 @@ class LineDrawer {
 			this.ctx.stroke();
 		}
 	}
-
-	clear() {
-		this.ctx.clearRect(0, 0, canvas.width, canvas.height);
-	}
 }
 
 
 class CandleDrawer extends LineDrawer {
 	constructor(canvas) {
 		super(canvas)
+		this.verticeWidth = GridDrawer.CandleWidth; 
+		this.ctx = canvas.getContext("2d")
 	}
 	draw(data) {
-		this.verticeWidth = 8
 
 		const chartVerticeFactory = new ChartVerticeFactory();
 		let vertices = chartVerticeFactory.create(data, ChartVertice.TYPE_CANDLE);
 
-		let minValue = Math.pow(1024, 10);
-		let maxValue = Math.pow(-1024, 11)
+		this.getMaxMinValue(vertices)
 
-		console.log("Прилетевшее количество свечей", vertices.length);
-
-		let verticesAmount = (Math.floor(this.canvas.scrollWidth / this.verticeWidth) + 1) <= vertices.length ? (Math.floor(this.canvas.scrollWidth / this.verticeWidth) + 1) : vertices.length;
-
-		console.log("Вершины", vertices);
-		console.log("Количество свечей", verticesAmount);
-
-		for (let i = 0; i < verticesAmount; i++) {
-			if (minValue > vertices[i].highPrice) {
-				minValue = vertices[i].highPrice
-			}
-			if (maxValue < vertices[i].highPrice) {
-				maxValue = vertices[i].highPrice
-			}
-			if (minValue > vertices[i].lowPrice) {
-				minValue = vertices[i].lowPrice
-			}
-			if (maxValue < vertices[i].lowPrice) {
-				maxValue = vertices[i].lowPrice
-			}
-		}
-
-		console.log("Минимальная и максимальная цена", minValue, maxValue);
-
-		console.log("Высота и длина канваса", this.width, this.height);
-
-		let maxMinDifference = maxValue - minValue;
-
-		const chartData = {
-			maxMinDifference: maxMinDifference,
-			maxValue: parseFloat(maxValue),
-		}
-
-		for (let i = 0; i < verticesAmount; i++) {
+		for (let i = 0; i < this.verticesAmount; i++) {
 
 
 			let coordinates = [
 				this.width - this.paddingHorizontal - (i) * this.verticeWidth, // отступ свечи по горизонтале
-				this.calculateVerticalPosition(vertices[i].openPrice, chartData),
-				this.calculateVerticalPosition(vertices[i].closePrice, chartData),
-				this.calculateVerticalPosition(vertices[i].lowPrice, chartData),
-				this.calculateVerticalPosition(vertices[i].highPrice, chartData),
+				this.calculateVerticalPosition(vertices[i].openPrice),
+				this.calculateVerticalPosition(vertices[i].closePrice),
+				this.calculateVerticalPosition(vertices[i].lowPrice),
+				this.calculateVerticalPosition(vertices[i].highPrice),
 			]
 
 			// candle stick 
@@ -357,110 +410,8 @@ class CandleDrawer extends LineDrawer {
 			this.ctx.stroke();
 
 			if (i == 0) {
-				this.drawLine(vertices[0], chartData)
+				this.drawLine(vertices[0])
 			}
-		}
-	}
-}
-
-class GridDrawer extends LineDrawer {
-	constructor(canvas) {
-		super(canvas)
-	}
-
-	draw(data) {
-		console.log(data[0]);
-
-
-		let minValue = Math.pow(1024, 10);
-		let maxValue = Math.pow(-1024, 11);
-
-		const chartVerticeFactory = new ChartVerticeFactory();
-		let vertices = chartVerticeFactory.create(data, ChartVertice.TYPE_LINE);
-
-		let verticesAmount = (Math.floor(this.canvas.scrollWidth / this.verticeWidth) + 1) <= vertices.length ? (Math.floor(this.canvas.scrollWidth / this.verticeWidth) + 1) : vertices.length;
-
-		console.log("Вершины", vertices);
-		console.log("Количество свечей", verticesAmount);
-
-		for (let i = 0; i < verticesAmount; i++) {
-			if (minValue > vertices[i].openPrice) {
-				minValue = vertices[i].openPrice
-			}
-			if (maxValue < vertices[i].openPrice) {
-				maxValue = vertices[i].openPrice
-			}
-			if (minValue > vertices[i].closePrice) {
-				minValue = vertices[i].closePrice
-			}
-			if (maxValue < vertices[i].closePrice) {
-				maxValue = vertices[i].closePrice
-			}
-		}
-
-		const chartData = {
-			maxMinDifference: maxValue - minValue,
-			maxValue: parseFloat(maxValue),
-		}
-
-
-		const number = parseFloat(data[0][4])
-		const numberToString = number + ""
-
-		let numberBeforeDot = numberToString.replace(/\.[0-9]+/g, "") * 1;
-		let numberAfterDot = numberToString.replace(/[0-9]+\./g, "") * 1;
-
-		let numberBeforeDotDown = numberBeforeDot;
-
-		let gridPrices = []
-
-		if ((numberBeforeDot + "").length > (numberAfterDot + "").length) {
-			let divideNumber = "1"
-
-			for (let i = 0; i < (numberBeforeDot + "").length - 2; i++) {
-				divideNumber += "0"
-			}
-
-			divideNumber = divideNumber * 1
-
-			console.log(divideNumber, numberBeforeDot, numberAfterDot);
-			let linesAmount = 20;
-			while (linesAmount > 0) {
-				if (numberBeforeDot % divideNumber == 0) {
-					gridPrices.push(numberBeforeDot)
-					linesAmount -= 1
-				}
-				numberBeforeDot += 1
-				numberBeforeDotDown -= 1
-				if (numberBeforeDotDown % divideNumber == 0) {
-					gridPrices.push(numberBeforeDotDown)
-					linesAmount -= 1
-				}
-			}
-
-			console.log(numberBeforeDotDown);
-			console.log(gridPrices);
-		}
-
-		for (let i of gridPrices) {
-			this.ctx.beginPath();
-			this.ctx.strokeStyle = "rgba(255,255,255, .1)"
-			this.ctx.lineWidth = 1
-			this.ctx.moveTo(0, this.calculateVerticalPosition(i, chartData))
-			this.ctx.lineTo(this.canvas.width, this.calculateVerticalPosition(i, chartData))
-			this.ctx.stroke()
-
-
-			let text = i + "";
-			let textSize = 14
-			this.ctx.beginPath();
-			this.ctx.font = textSize + "px" + " sans-serif";
-			this.ctx.fillStyle = "#fff";
-			this.ctx.fillText(
-				text,
-				this.width - this.ctx.measureText(text).width - 10,
-				this.calculateVerticalPosition(i, chartData) - textSize
-			);
 		}
 	}
 }
@@ -558,7 +509,7 @@ class Loader {
 
 class Chart {
 	constructor(states) {
-		this.states = states	
+		this.states = states
 		this.isLoader = false;
 	}
 
@@ -574,28 +525,29 @@ class Chart {
 			switch (i) {
 				case "Loader":
 					if (!this.isLoader) {
-						state.start();	
+						state.start();
 					}
-					break;
-			
-				case "ConnectionChart":
-					data = await state.makeRequest();
 					break;
 
-				case "LineDrawer":
-					if (!data) {
-						console.log("Данных по графику не получено");
-						break;
-					}
-					data = data.reverse();
+				case "ConnectionChart":
+					data = await state.makeRequest();
+					data = data.reverse()
+					break;
+
+				case "GridDrawer":
 					state.clear();
 					state.draw(data);
 					this.isLoader = true
 					break;
 
-				case "GridDrawer":
+				case "ChartDrawer":
+					if (!data) {
+						console.log("Данных по графику не получено");
+						break;
+					}
 					state.draw(data);
 					break;
+
 
 				case "ConnectionSymbol":
 					symbols = await state.makeRequest();
@@ -628,8 +580,8 @@ const canvas = document.getElementById("canvas");
 let states = {
 	Loader: new Loader(canvas),
 	ConnectionChart: new ConnectionChart(),
-	LineDrawer: new LineDrawer(canvas),
 	GridDrawer: new GridDrawer(canvas),
+	ChartDrawer: new CandleDrawer(canvas),
 	ConnectionSymbol: new ConnectionSymbol(),
 	Symbols: new Symbols(),
 }
@@ -670,6 +622,7 @@ document.addEventListener("click", (event) => {
 
 })
 
+console.log("pizdec");
 const coinInfo = document.querySelector(".coin-info");
 coinInfo.addEventListener("click", () => {
 	const element = document.querySelector(".currencies")
@@ -684,22 +637,23 @@ const chartTypeCandle = document.querySelector(".chart-type_candle")
 const chartTypeLine = document.querySelector(".chart-type_line")
 
 chartTypeCandle.addEventListener("click", () => {
-	chart.states.LineDrawer = new CandleDrawer(canvas)
+	chart.states.ChartDrawer = new CandleDrawer(canvas)
 })
 
 chartTypeLine.addEventListener("click", () => {
-	chart.states.LineDrawer = new LineDrawer(canvas)
+	chart.states.ChartDrawer = new LineDrawer(canvas)
 })
 
 const currenciesSearch = document.querySelector(".currencies_search");
 
 currenciesSearch.addEventListener("change", (e) => {
-	chart.states[chart.states.length - 1].search(e.target.value)
+	chart.states.Symbols.search(e.target.value)
 })
 
+chart.change()
 setInterval(() => {
 	chart.change()
-}, 500)
+}, 2000)
 
 KioskBoard.Init({
 
