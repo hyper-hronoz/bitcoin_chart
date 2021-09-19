@@ -252,7 +252,8 @@ class GridDrawer {
 		let minValue = Math.pow(1024, 10);
 		let maxValue = Math.pow(-1024, 11);
 
-		this.verticesAmount = (Math.floor(this.width / this.verticeWidth) + 1) <= vertices.length ? (Math.floor(this.width / this.verticeWidth) + 1) : vertices.length;
+		let maxAmountOfCandles = Math.floor(this.width / this.verticeWidth)
+		this.verticesAmount = (maxAmountOfCandles) <= vertices.length ? (maxAmountOfCandles) : vertices.length;
 
 		for (let i = 0; i < this.verticesAmount; i++) {
 			if (minValue > vertices[i][key]) {
@@ -272,6 +273,12 @@ class GridDrawer {
 		this.minValue = minValue;
 		this.maxValue = maxValue;
 		this.maxMinDifference = maxValue - minValue;
+
+		this.paddingIfCandlesAbsent = null
+		if (maxAmountOfCandles > this.verticesAmount) {
+			this.paddingIfCandlesAbsent = (maxAmountOfCandles - this.verticesAmount) * this.verticeWidth
+		}
+		console.log(maxAmountOfCandles, this.verticesAmount);
 	}
 
 	clear() {
@@ -328,17 +335,17 @@ class LineDrawer extends GridDrawer {
 
 			if (i == 0) {
 				coordinates = [
-					this.width - this.paddingHorizontal - (i) * this.verticeWidth,
+					this.width - this.paddingHorizontal - this.paddingIfCandlesAbsent - (i) * this.verticeWidth,
 					this.calculateVerticalPosition(vertices[i].openPrice),
-					this.width - this.paddingHorizontal - (i - 1) * this.verticeWidth,
+					this.width - this.paddingHorizontal - this.paddingIfCandlesAbsent - (i - 1) * this.verticeWidth,
 					this.calculateVerticalPosition(vertices[i].closePrice)
 				]
 				this.drawLine(vertices[0])
 			} else {
 				coordinates = [
-					this.width - this.paddingHorizontal - (i) * this.verticeWidth,
+					this.width - this.paddingHorizontal - this.paddingIfCandlesAbsent - (i) * this.verticeWidth,
 					this.calculateVerticalPosition(vertices[i].openPrice),
-					this.width - this.paddingHorizontal - (i - 1) * this.verticeWidth,
+					this.width - this.paddingHorizontal - this.paddingIfCandlesAbsent - (i - 1) * this.verticeWidth,
 					this.calculateVerticalPosition(vertices[i - 1].openPrice)
 				]
 			}
@@ -364,7 +371,7 @@ class LineDrawer extends GridDrawer {
 class CandleDrawer extends LineDrawer {
 	constructor(canvas) {
 		super(canvas)
-		this.verticeWidth = GridDrawer.CandleWidth; 
+		this.verticeWidth = GridDrawer.CandleWidth;
 		this.ctx = canvas.getContext("2d")
 	}
 	draw(data) {
@@ -378,7 +385,7 @@ class CandleDrawer extends LineDrawer {
 
 
 			let coordinates = [
-				this.width - this.paddingHorizontal - (i) * this.verticeWidth, // отступ свечи по горизонтале
+				this.width - this.paddingHorizontal - this.paddingIfCandlesAbsent - (i) * this.verticeWidth, // отступ свечи по горизонтале
 				this.calculateVerticalPosition(vertices[i].openPrice),
 				this.calculateVerticalPosition(vertices[i].closePrice),
 				this.calculateVerticalPosition(vertices[i].lowPrice),
